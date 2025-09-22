@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>1 Player Fighter Game (Smart CPU)</title>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+      margin: auto;
+      background: url("stage.png") center/cover no-repeat;
+    }
+    #hud {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80%;
+      display: flex;
+      justify-content: space-between;
+      font-family: sans-serif;
+      color: white;
+      font-size: 20px;
+    }
+    .bar {
+      width: 40%;
+      height: 20px;
+      background: red;
+      border: 2px solid white;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .health {
+      height: 100%;
+      background: lime;
+      width: 100%;
+      transition: width 0.1s;
+    }
+  </style>
+</head>
+<body>
+  <div id="hud">
+    <div class="bar"><div id="p1health" class="health"></div></div>
+    <div class="bar"><div id="p2health" class="health"></div></div>
+  </div>
+  <canvas id="game" width="900" height="400"></canvas>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+
+    // Fighter images (replace with your own PNGs)
+    const p1Img = new Image();
+    p1Img.src = "fighter1.png";
+    const p2Img = new Image();
+    p2Img.src = "fighter2.png";
+
+    const groundY = 350;
+
+    // Player + CPU
+    const player1 = { x: 150, y: groundY, w: 80, h: 120, vx: 0, vy: 0, health: 100, keys: {} };
+    const cpu = { x: 650, y: groundY, w: 80, h: 120, vx: 0, vy: 0, health: 100, cooldown: 0 };
+
+    function drawFighter(f, img) {
+      if (img.complete) {
+        ctx.drawImage(img, f.x, f.y - f.h, f.w, f.h);
+      } else {
+        ctx.fillStyle = "white";
+        ctx.fillRect(f.x, f.y - f.h, f.w, f.h);
+      }
+    }
+
+    function update() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Gravity
+      [player1, cpu].forEach(p => {
+        p.vy += 1;
+        p.y += p.vy;
+        if (p.y > groundY) {
+          p.y = groundY;
+          p.vy = 0;
+        }
+        p.x += p.vx;
+      });
+
+      // Player 1 controls
+      if (player1.keys["a"]) player1.vx = -5;
+      else if (player1.keys["d"]) player1.vx = 5;
+      else player1.vx = 0;
+      if (player1.keys["w"] && player1.y === groundY) player1.vy = -15;
+      if (player1.keys["j"]) attack(player1, cpu);
+
+      // CPU AI logic
+      cpuAI();
+
+      // Draw fighters
+      drawFighter(player1, p1Img);
+      drawFighter(cpu, p2Img);
+
+      requestAnimationFrame(update);
+    }
+
+    function cpuAI() {
+      const distance = cpu.x - player1.x;
+
+      // Move toward player
+      if (distance > 100) cpu.vx = -2;
+      else if (distance < -100) cpu.vx = 2;
+      else cpu.vx = 0;
+
+      // Jump sometimes if too close
+      if (Math.abs(distance) < 60 && cpu.y === groundY && Math.random() < 0.01) {
+        cpu.vy = -15;
+      }
+
+      // Attack if in range and cooldown is 0
+      if (Math.abs(distance) < 85 && cpu.cooldown <= 0) {
+        attack(cpu, player1);
+        cpu.cooldown = 40; // frames before next attack
+      }
+
+      if (cpu.cooldown > 0) cpu.cooldown--;
+    }
+
+    function attack(attacker, target) {
+      if (Math.abs(attacker.x - target.x) < 80 && Math.abs(attacker.y - target.y) < 50) {
+        target.health = Math.max(0, target.health - 1);
+        updateHealthBars();
+      }
+    }
+
+    function updateHealthBars() {
+      document.getElementById("p1health").style.width = player1.health + "%";
+      document.getElementById("p2health").style.width = cpu.health + "%";
+    }
+
+    // Key controls
+    window.addEventListener("keydown", e => player1.keys[e.key] = true);
+    window.addEventListener("keyup", e => player1.keys[e.key] = false);
+
+    update();
+  </script>
+</body>
+</html>
